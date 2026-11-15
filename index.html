@@ -108,6 +108,7 @@ input{width:100%;font-size:22px;padding:10px 12px;border-radius:12px;border:2px 
   <div class="card">
     <h2>약 시간 설정</h2>
     <label>귤손녀가 이렇게 불러요</label><div class="who" id="sWho"></div>
+    <label>연결 번호 <span style="font-weight:500;font-size:16px;color:#8a6a4f">(앱을 다시 깔았을 때 예전 번호를 넣으면 가족 연결이 그대로 이어져요)</span></label><input id="sTopic" autocapitalize="off" autocomplete="off" spellcheck="false">
     <label>알림 받을 가족</label><input id="sFam"><div class="chips" id="sChips"></div><div class="note" style="padding:6px 2px 0">아래에서 고르면 귤손녀가 "○○한테 알려 드렸어요!"라고 말해요. 직접 적은 이름은 "가족한테"로 말해요.</div>
     <div id="sSlots"></div>
     <button class="btn2" onclick="saveSet()">저장하기</button>
@@ -230,7 +231,7 @@ function speak(k){
 }
 function go(v,btn){['home','family','set'].forEach(x=>document.getElementById('v-'+x).classList.toggle('hidden',x!==v));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b===btn));if(v==='set')fillSet();render();scrollTo(0,0)}
 function fillSet(){
-  sFam.value=S.fam;drawWho();drawChips();appStatus();
+  sTopic.value=S.topic;sFam.value=S.fam;drawWho();drawChips();appStatus();
   document.getElementById('sSlots').innerHTML=S.slots.map((s,i)=>`<label>${ICON[s.id]} ${s.nm}</label><div class="row"><input type="time" id="t${i}" value="${s.time}"><input id="m${i}" value="${s.med}" placeholder="약 이름"></div>`).join('');
 }
 function appStatus(){const b=document.getElementById('appBox');if(!APP||!APP.status){return}b.classList.remove('hidden');
@@ -239,6 +240,7 @@ function testAlarm(){try{syncApp();APP.testAlarm(S.slots[0].id);toast('10초 뒤
 function drawChips(){sChips.innerHTML=FAM_ORDER.map(f=>`<button class="${S.fam===f?'on':''}" onclick="S.fam='${f}';sFam.value='${f}';save('gs_set',S);drawChips();render();syncApp()">${f}</button>`).join('')}
 function drawWho(){sWho.innerHTML=[['gm','<b>👵</b>할머니',''],['gp','<b>👴</b>할아버지',''],['c','<b>🙂</b>이름 없이','자녀·누구나']].map(([k,t,s])=>`<button class="${S.who===k?'on':''}" onclick="S.who='${k}';drawWho();save('gs_set',S);render();speak();scheduleMisses()">${t}${s?'<small>'+s+'</small>':''}</button>`).join('')}
 function saveSet(){
+  const nt=(sTopic.value||'').trim().toLowerCase(); if(/^gyul-[a-z0-9]{6,20}$/.test(nt)&&nt!==S.topic){S.topic=nt;try{localStorage.removeItem('gs_sched')}catch(e){}}
   S.fam=sFam.value.trim()||'가족';
   S.slots.forEach((s,i)=>{s.time=document.getElementById('t'+i).value||s.time;s.med=document.getElementById('m'+i).value.trim()||'약'});
   save('gs_set',S);toast('설정','저장했어요 👍');render();scheduleMisses();
