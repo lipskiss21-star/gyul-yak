@@ -88,7 +88,7 @@ input{width:100%;font-size:22px;padding:10px 12px;border-radius:12px;border:2px 
   </div>
   <div class="card"><h2>오늘 복용 현황</h2><div class="slots" id="famSlots"></div></div>
   <div class="card"><h2>보낸 알림</h2><ul class="log" id="log"></ul></div>
-  <div class="note">※ 약 시간 30분이 지나도록 버튼을 안 누르시면 자녀분께 "아직 안 드셨어요" 알림이 가요. 이 알림은 앞으로 3일 치를 미리 예약해 두니, 이 화면을 적어도 이틀에 한 번은 열어 주세요.<br>※ 알림에는 약 이름을 넣지 않아요.</div>
+  <div class="note" id="webNote">※ 약 시간 30분이 지나도록 버튼을 안 누르시면 자녀분께 "아직 안 드셨어요" 알림이 가요. 이 알림은 앞으로 3일 치를 미리 예약해 두니, 이 화면을 적어도 이틀에 한 번은 열어 주세요.<br>※ 알림에는 약 이름을 넣지 않아요.</div>
 </section>
 <section id="v-watch" class="hidden">
   <div class="card">
@@ -141,13 +141,17 @@ S=load('gs_set',DEF); if(!S.who)S.who='gm';
 function rnd(n){const a='abcdefghijkmnpqrstuvwxyz23456789';let s='';crypto.getRandomValues(new Uint8Array(n)).forEach(x=>s+=a[x%a.length]);return s}
 if(!S.topic){S.topic='gyul-'+rnd(10);save('gs_set',S)}
 const NTFY='https://ntfy.sh';
+const APP=window.GyulApp||null;
+function syncApp(){try{if(APP)APP.setSchedule(JSON.stringify({who:S.who,fam:S.fam,topic:S.topic,slots:S.slots.map(s=>({id:s.id,nm:s.nm,time:s.time}))}))}catch(e){}}
 const dkey=d=>d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
 async function pub(o,topic){try{const r=await fetch(NTFY+'/',{method:'POST',body:JSON.stringify(Object.assign({topic:topic||S.topic},o))});return r.ok}catch(e){return false}}
 function unpub(seq){try{fetch(`${NTFY}/${S.topic}/${seq}`,{method:'DELETE'}).catch(()=>{})}catch(e){}}
 function scheduleMisses(){
+  syncApp();
   const sig=S.slots.map(s=>s.time).join(',')+'|'+S.who+'|'+S.topic;
   let sch=load('gs_sched',{sig:'',keys:{}});
   const nowS=Date.now()/1000;
+  if(APP){Object.keys(sch.keys).forEach(k=>{if(sch.keys[k]>nowS)unpub(k)});save('gs_sched',{sig:'app',keys:{}});return}
   if(sch.sig!==sig){Object.keys(sch.keys).forEach(k=>{if(sch.keys[k]>nowS)unpub(k)});sch={sig,keys:{}}}
   Object.keys(sch.keys).forEach(k=>{if(sch.keys[k]<nowS-86400)delete sch.keys[k]});
   save('gs_sched',sch);
@@ -200,7 +204,7 @@ function takeNow(){
   const c=current(); if(!c)return;
   const t=hhmm(new Date()); D.taken[c.id]=t;
   D.log.unshift({k:'ok'+c.id,t,m:`✅ ${who3()} ${c.nm}을 드셨어요.`}); save('gs_day',D);
-  const day=dkey(new Date()); unpub(`m-${day}-${c.id}`);
+  const day=dkey(new Date()); unpub(`m-${day}-${c.id}`); try{if(APP)APP.taken(c.id)}catch(e){}
   pub({title:`✅ ${who3()} ${c.nm}을 드셨어요`,message:`${t}에 귤손녀 약 알림에서 버튼을 누르셨어요.`,sequence_id:`t-${day}-${c.id}`,tags:['white_check_mark'],priority:4})
     .then(ok=>toast(ok?`📱 ${S.fam}에게 알림을 보냈어요`:'⚠️ 알림을 못 보냈어요',ok?`${who3()} ${c.nm}을 드셨어요 ✅`:'인터넷 연결을 확인해 주세요'));
   party(); render(); speak('done');
@@ -224,7 +228,7 @@ function fillSet(){
   sFam.value=S.fam;drawWho();drawChips();
   document.getElementById('sSlots').innerHTML=S.slots.map((s,i)=>`<label>${ICON[s.id]} ${s.nm}</label><div class="row"><input type="time" id="t${i}" value="${s.time}"><input id="m${i}" value="${s.med}" placeholder="약 이름"></div>`).join('');
 }
-function drawChips(){sChips.innerHTML=FAM_ORDER.map(f=>`<button class="${S.fam===f?'on':''}" onclick="S.fam='${f}';sFam.value='${f}';save('gs_set',S);drawChips();render()">${f}</button>`).join('')}
+function drawChips(){sChips.innerHTML=FAM_ORDER.map(f=>`<button class="${S.fam===f?'on':''}" onclick="S.fam='${f}';sFam.value='${f}';save('gs_set',S);drawChips();render();syncApp()">${f}</button>`).join('')}
 function drawWho(){sWho.innerHTML=[['gm','<b>👵</b>할머니',''],['gp','<b>👴</b>할아버지',''],['c','<b>🙂</b>이름 없이','자녀·누구나']].map(([k,t,s])=>`<button class="${S.who===k?'on':''}" onclick="S.who='${k}';drawWho();save('gs_set',S);render();speak();scheduleMisses()">${t}${s?'<small>'+s+'</small>':''}</button>`).join('')}
 function saveSet(){
   S.fam=sFam.value.trim()||'가족';
@@ -235,6 +239,7 @@ function resetToday(){D={day:today,taken:{},log:[]};save('gs_day',D);const sc=lo
 function copyTxt(t,msg){try{navigator.clipboard.writeText(t).then(()=>toast('복사',msg),()=>toast('복사가 안 돼요',t))}catch(e){toast('복사가 안 돼요',t)}}
 function watchUrl(){return location.origin+location.pathname+'#f='+S.topic+'&w='+S.who+'&t='+S.slots.map(s=>s.time).join(',')}
 function shareLink(){const u=watchUrl(),txt=`${WHO[S.who]||'부모님'} 약 드셨는지 여기서 볼 수 있어요 🍊`;
+  if(APP&&APP.share){try{APP.share(txt+'\n'+u);return}catch(e){}}
   if(navigator.share){navigator.share({title:'귤손녀 약 알림',text:txt,url:u}).catch(()=>{})}else copyTxt(txt+'\n'+u,'링크를 복사했어요. 카톡에 붙여 넣어 보내 주세요')}
 function testAlert(){pub({title:'🍊 귤손녀 약 알림 시험',message:`${S.fam}님, 알림이 잘 오나요? 앞으로 약 드신 소식을 여기로 알려 드릴게요.`,tags:['tangerine'],priority:4}).then(ok=>toast(ok?'시험 알림을 보냈어요':'⚠️ 못 보냈어요',ok?'자녀분 휴대폰을 확인해 보세요':'인터넷 연결을 확인해 주세요'))}
 // ---- 자녀용 현황 화면 (#f=연결번호)
@@ -266,5 +271,6 @@ if(HP.get('f')){
   poll();setInterval(poll,30000);
 }else{
   render();setInterval(render,30000);scheduleMisses();
+  if(APP){const wn=document.getElementById('webNote');if(wn)wn.innerHTML='※ 약 시간이 되면 이 휴대폰이 귤손녀 목소리로 알려 드려요. 30분이 지나도록 버튼을 안 누르시면 가족에게 "아직 안 드셨어요" 알림이 가요.<br>※ 알림에는 약 이름을 넣지 않아요.'}
 }
 </script></body></html>
