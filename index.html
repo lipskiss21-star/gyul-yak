@@ -177,7 +177,7 @@ function status(s){
   return['miss','⚠️ 아직 안 드심'];
 }
 function current(){ // 지금 먹어야 할 약: 시간 지난(또는 1시간 이내) 것 중 안 먹은 첫 약
-  return S.slots.find(s=>!D.taken[s.id]&&nowM()-mins(s.time)>=-60);
+  const c=S.slots.filter(s=>!D.taken[s.id]&&nowM()-mins(s.time)>=-60);return c.length?c.reduce((a,b)=>mins(b.time)>mins(a.time)?b:a):undefined;
 }
 function next(){return S.slots.find(s=>!D.taken[s.id])}
 function msgText(){
