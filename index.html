@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>귤손녀 약 알림</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<meta name="theme-color" content="#FF8A1F">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{--or:#FF8A1F;--or2:#FFB25C;--gr:#5DB84A;--gr2:#E9F7E3;--ink:#2B1D12;--bg:#FFF6EA;--red:#E5484D}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);font-family:'Noto Sans KR',sans-serif;color:var(--ink);font-size:22px}
+.app{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+header{background:var(--or);color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between}
+header h1{font-family:'Jua';font-size:28px;margin:0;font-weight:400}
+header .clock{font-size:22px;font-weight:700}
+main{flex:1;padding:16px}
+.hero{display:flex;gap:12px;align-items:flex-start}
+.hero img{width:110px;height:106px;border-radius:50%;object-fit:cover;border:5px solid #fff;box-shadow:0 3px 10px #0002;flex:none}
+.bubble{position:relative;background:#fff;border-radius:22px;padding:14px 16px;font-family:'Jua';font-size:26px;line-height:1.35;box-shadow:0 3px 10px #0001;flex:1}
+.bubble:before{content:'';position:absolute;left:-14px;top:30px;border:9px solid transparent;border-right:14px solid #fff;border-left:0}
+.say{margin-top:8px;font-family:'Noto Sans KR';font-size:18px;background:var(--gr2);color:#2d6b22;border:0;border-radius:14px;padding:6px 12px;font-weight:700}
+.big{display:block;width:100%;margin:20px 0 8px;padding:28px 10px;border:0;border-radius:28px;background:var(--gr);color:#fff;font-size:36px;font-weight:900;box-shadow:0 6px 0 #3f8a30;cursor:pointer}
+.big:active{transform:translateY(4px);box-shadow:0 2px 0 #3f8a30}
+.big.done{background:#cfcfcf;box-shadow:0 6px 0 #a9a9a9;color:#555}
+.sub{text-align:center;font-size:19px;color:#7a5a3f;margin-bottom:14px}
+.slots{display:grid;gap:12px}
+.slot{background:#fff;border-radius:20px;padding:14px 16px;display:flex;align-items:center;gap:14px;border:3px solid transparent}
+.slot .ic{font-size:40px}
+.slot .nm{font-weight:900;font-size:26px}
+.slot .tm{font-size:18px;color:#8a6a4f}
+.slot .st{margin-left:auto;white-space:nowrap;flex:none;font-weight:900;font-size:21px;text-align:right}
+.slot.now{border-color:var(--or)}
+.ok{color:var(--gr)} .wait{color:#999} .miss{color:var(--red)} .due{color:var(--or)}
+nav{display:grid;grid-template-columns:repeat(3,1fr);background:#fff;border-top:2px solid #f0e2d0;position:sticky;bottom:0}
+nav button{border:0;background:none;padding:12px 4px;font-size:19px;font-weight:700;color:#9b7d62;font-family:inherit}
+nav button.on{color:var(--or)}
+nav button span{display:block;font-size:30px}
+.card{background:#fff;border-radius:20px;padding:16px;margin-bottom:14px}
+.card h2{margin:0 0 10px;font-size:24px}
+.log{list-style:none;margin:0;padding:0}
+.log li{padding:10px 0;border-bottom:1px solid #f1e6d8;font-size:19px}
+.log li b{font-size:20px}
+.log .t{color:#9b7d62;font-size:16px}
+label{display:block;font-weight:700;margin:12px 0 4px;font-size:20px}
+input{width:100%;font-size:22px;padding:10px 12px;border-radius:12px;border:2px solid #e6d3bd;font-family:inherit}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn2{border:0;background:var(--or);color:#fff;font-size:22px;font-weight:900;padding:14px;border-radius:16px;width:100%;margin-top:14px;font-family:inherit}
+.btn3{border:2px solid var(--or);background:#fff;color:var(--or);font-size:18px;font-weight:700;padding:10px;border-radius:14px;width:100%;margin-top:10px;font-family:inherit}
+.note{font-size:16px;color:#8a6a4f;line-height:1.5;padding:4px 4px 16px}
+.toast{position:fixed;left:50%;top:18px;transform:translateX(-50%) translateY(-140%);background:#2B1D12;color:#fff;padding:14px 18px;border-radius:18px;font-size:19px;max-width:440px;width:92%;transition:transform .35s;z-index:9;box-shadow:0 8px 20px #0004}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast small{display:block;color:#ffcf9a;font-size:15px;margin-bottom:2px}
+.confetti{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+.confetti i{position:absolute;top:-30px;font-style:normal;font-size:30px;animation:fall 1.8s ease-in forwards}
+@keyframes fall{to{transform:translateY(110vh) rotate(360deg)}}
+.hidden{display:none}
+.steps{padding-left:22px;margin:6px 0 10px;font-size:19px;line-height:1.5}.steps li{margin-bottom:14px}.lnk{color:#c25e00;font-weight:700}.code{margin-top:8px;background:#FFF0DD;border:2px dashed var(--or);border-radius:12px;padding:10px;font-size:22px;font-weight:900;text-align:center;letter-spacing:1px;word-break:break-all}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.chips button{font-family:inherit;font-size:18px;font-weight:700;padding:8px 14px;border-radius:999px;border:2px solid #e6d3bd;background:#fff;color:var(--ink)}.chips button.on{border-color:var(--or);background:#FFF0DD;color:#c25e00}
+.who{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}.who button{font-family:inherit;font-size:20px;font-weight:700;padding:14px 4px;border-radius:14px;border:3px solid #e6d3bd;background:#fff;color:var(--ink)}.who button.on{border-color:var(--or);background:#FFF0DD;color:#c25e00}.who b{display:block;font-size:30px}.who button{font-size:18px;white-space:nowrap}.who small{display:block;font-size:14px;font-weight:500;color:#8a6a4f}
+.fam-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.pill{display:inline-block;padding:4px 12px;border-radius:999px;font-size:17px;font-weight:700}
+</style></head>
+<body><div class="app">
+<header><h1>🍊 귤손녀 약 알림</h1><div class="clock" id="clock"></div></header>
+
+<main>
+<section id="v-home">
+  <div class="hero">
+    <img src="girl.jpg" alt="귤손녀">
+    <div class="bubble"><span id="msg"></span><br><button class="say" onclick="speak()">🔊 손녀 목소리로 듣기</button></div>
+  </div>
+  <button class="big" id="bigBtn" onclick="takeNow()">💊 약 먹었어요</button>
+  <div class="sub" id="sub"></div>
+  <div class="slots" id="slots"></div>
+</section>
+
+<section id="v-family" class="hidden">
+  <div class="card">
+    <h2>📱 자녀 휴대폰 연결</h2>
+    <div class="note" style="padding:0 0 6px">자녀분 휴대폰에 알림이 가게 하는 방법이에요. 한 번만 하면 돼요.</div>
+    <ol class="steps">
+      <li>자녀분 휴대폰에 무료 알림 앱 <b>ntfy</b>를 설치해요.<br><a class="lnk" href="https://play.google.com/store/apps/details?id=io.heckel.ntfy">안드로이드</a> · <a class="lnk" href="https://apps.apple.com/app/ntfy/id1625396347">아이폰</a></li>
+      <li>ntfy 앱에서 <b>＋</b>를 누르고 아래 <b>연결 번호</b>를 넣어 구독해요.<div class="code" id="topicBox"></div><button class="btn3" onclick="copyTxt(S.topic,'연결 번호를 복사했어요')">연결 번호 복사</button></li>
+      <li>아래 버튼으로 자녀분께 <b>현황 보기 링크</b>를 보내요. 오늘 약을 드셨는지 한눈에 볼 수 있어요.<button class="btn2" onclick="shareLink()">🔗 자녀에게 링크 보내기</button></li>
+    </ol>
+    <button class="btn3" onclick="testAlert()">🔔 자녀 휴대폰에 시험 알림 보내기</button>
+  </div>
+  <div class="card"><h2>오늘 복용 현황</h2><div class="slots" id="famSlots"></div></div>
+  <div class="card"><h2>보낸 알림</h2><ul class="log" id="log"></ul></div>
+  <div class="note">※ 약 시간 30분이 지나도록 버튼을 안 누르시면 자녀분께 "아직 안 드셨어요" 알림이 가요. 이 알림은 앞으로 3일 치를 미리 예약해 두니, 이 화면을 적어도 이틀에 한 번은 열어 주세요.<br>※ 알림에는 약 이름을 넣지 않아요.</div>
+</section>
+<section id="v-watch" class="hidden">
+  <div class="card">
+    <h2 id="wTitle">약 드셨는지 확인</h2>
+    <div class="note" style="padding:0" id="wNote">30초마다 새로 확인해요.</div>
+  </div>
+  <div class="card"><h2>오늘 복용 현황</h2><div class="slots" id="wSlots"></div></div>
+  <div class="card"><h2>받은 알림</h2><ul class="log" id="wLog"></ul></div>
+  <div class="card">
+    <h2>🔔 휴대폰 알림 받기</h2>
+    <div class="note" style="padding:0">무료 앱 <b>ntfy</b>를 설치하고 ＋를 눌러 아래 연결 번호를 구독하면, 약을 드실 때와 안 드셨을 때 바로 알림이 와요.<br><a class="lnk" href="https://play.google.com/store/apps/details?id=io.heckel.ntfy">안드로이드</a> · <a class="lnk" href="https://apps.apple.com/app/ntfy/id1625396347">아이폰</a></div>
+    <div class="code" id="wTopic"></div><button class="btn3" id="wCopy">연결 번호 복사</button>
+  </div>
+</section>
+
+<section id="v-set" class="hidden">
+  <div class="card">
+    <h2>약 시간 설정</h2>
+    <label>귤손녀가 이렇게 불러요</label><div class="who" id="sWho"></div>
+    <label>알림 받을 가족</label><input id="sFam"><div class="chips" id="sChips"></div><div class="note" style="padding:6px 2px 0">아래에서 고르면 귤손녀가 "○○한테 알려 드렸어요!"라고 말해요. 직접 적은 이름은 "가족한테"로 말해요.</div>
+    <div id="sSlots"></div>
+    <button class="btn2" onclick="saveSet()">저장하기</button>
+    <button class="btn3" onclick="resetToday()">오늘 기록 지우기 (체험용)</button>
+  </div>
+  <div class="note">※ 이 앱은 약 먹을 시간을 알려 주는 도구예요. 약의 종류·용량·함께 먹어도 되는지는 반드시 의사·약사와 상담하세요.</div>
+</section>
+</main>
+
+<nav id="nav">
+  <button class="on" onclick="go('home',this)"><span>🏠</span>오늘 약</button>
+  <button onclick="go('family',this)"><span>👨‍👩‍👧</span>가족 화면</button>
+  <button onclick="go('set',this)"><span>⚙️</span>설정</button>
+</nav>
+</div>
+<div class="toast" id="toast"></div>
+<div class="confetti" id="conf"></div>
+
+<script src="voice.js"></script>
+<script>
+const VOICE=window.VOICE||{};
+const ICON={morning:'🌅',lunch:'☀️',evening:'🌙'};
+const DEF={who:'gm',name:'할머니',fam:'큰딸',slots:[
+ {id:'morning',nm:'아침 약',time:'08:00',med:'혈압약'},
+ {id:'lunch',nm:'점심 약',time:'12:30',med:'위장약'},
+ {id:'evening',nm:'저녁 약',time:'19:00',med:'혈압약'}]};
+let S, D, today=new Date().toDateString();
+function load(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+S=load('gs_set',DEF); if(!S.who)S.who='gm';
+function rnd(n){const a='abcdefghijkmnpqrstuvwxyz23456789';let s='';crypto.getRandomValues(new Uint8Array(n)).forEach(x=>s+=a[x%a.length]);return s}
+if(!S.topic){S.topic='gyul-'+rnd(10);save('gs_set',S)}
+const NTFY='https://ntfy.sh';
+const dkey=d=>d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+async function pub(o,topic){try{const r=await fetch(NTFY+'/',{method:'POST',body:JSON.stringify(Object.assign({topic:topic||S.topic},o))});return r.ok}catch(e){return false}}
+function unpub(seq){try{fetch(`${NTFY}/${S.topic}/${seq}`,{method:'DELETE'}).catch(()=>{})}catch(e){}}
+function scheduleMisses(){
+  const sig=S.slots.map(s=>s.time).join(',')+'|'+S.who+'|'+S.topic;
+  let sch=load('gs_sched',{sig:'',keys:{}});
+  const nowS=Date.now()/1000;
+  if(sch.sig!==sig){Object.keys(sch.keys).forEach(k=>{if(sch.keys[k]>nowS)unpub(k)});sch={sig,keys:{}}}
+  Object.keys(sch.keys).forEach(k=>{if(sch.keys[k]<nowS-86400)delete sch.keys[k]});
+  save('gs_sched',sch);
+  for(let d=0;d<3;d++){const b=new Date();b.setDate(b.getDate()+d);
+    S.slots.forEach(s=>{const[hh,mm]=s.time.split(':');const at=new Date(b.getFullYear(),b.getMonth(),b.getDate(),+hh,+mm+30);
+      const sec=Math.floor(at/1000);if(sec-nowS<90||sec-nowS>3*86400-900)return;
+      if(d===0&&D.taken[s.id])return;
+      const key=`m-${dkey(b)}-${s.id}`;if(sch.keys[key])return;sch.keys[key]=sec;save('gs_sched',sch);
+      pub({title:`⚠️ ${who3()} ${s.nm}을 아직 안 드셨어요`,message:`${s.time} 약인데 30분이 지나도록 버튼을 안 누르셨어요. 전화 한 통 드려 보세요.`,delay:String(sec),sequence_id:key,tags:['warning'],priority:4})
+        .then(ok=>{if(!ok){const c=load('gs_sched',sch);delete c.keys[key];save('gs_sched',c)}});
+    })}
+}
+const WHO={gm:'할머니',gp:'할아버지',c:''};
+D=load('gs_day',{day:today,taken:{},log:[]}); if(D.day!==today)D={day:today,taken:{},log:[]};
+const mins=t=>{const[a,b]=t.split(':');return +a*60+ +b};
+const nowM=()=>{const n=new Date();return n.getHours()*60+n.getMinutes()};
+const hhmm=d=>d.toTimeString().slice(0,5);
+function status(s){
+  if(D.taken[s.id])return['ok','✅ 드셨어요'];
+  const d=nowM()-mins(s.time);
+  if(d<-60)return['wait','⏰ '+s.time];
+  if(d<=30)return['due','👉 지금 드세요'];
+  return['miss','⚠️ 아직 안 드심'];
+}
+function current(){ // 지금 먹어야 할 약: 시간 지난(또는 1시간 이내) 것 중 안 먹은 첫 약
+  return S.slots.find(s=>!D.taken[s.id]&&nowM()-mins(s.time)>=-60);
+}
+function next(){return S.slots.find(s=>!D.taken[s.id])}
+function msgText(){
+  const c=current(), n=WHO[S.who];
+  if(c) return n?`${n}~ ${c.nm} 드실 시간이에요!<br>${c.med} 꼭 챙기세요 💛`:`${c.nm} 드실 시간이에요!<br>${c.med} 꼭 챙기세요 💛`;
+  const x=next();
+  if(x) return `${n?n+', ':''}잘하셨어요!<br>다음은 ${x.time} ${x.nm}이에요 😊`;
+  return n?`${n} 최고! 🎉<br>오늘 약 다 드셨어요!`:`최고예요! 🎉<br>오늘 약 다 드셨어요!`;
+}
+function render(){
+  document.getElementById('clock').textContent=hhmm(new Date());
+  document.getElementById('msg').innerHTML=msgText();
+  const c=current(), b=document.getElementById('bigBtn');
+  if(c){b.className='big';b.textContent=`💊 ${c.nm} 먹었어요`;document.getElementById('sub').textContent=`누르시면 ${S.fam}에게 알려 드려요`}
+  else{b.className='big done';b.textContent=next()?'다음 약 시간을 기다려요':'오늘 약 끝! 👏';document.getElementById('sub').textContent=''}
+  const row=(s,fam)=>{const[k,t]=status(s);const ok=D.taken[s.id];
+    return `<div class="slot ${c&&c.id===s.id&&!fam?'now':''}"><div class="ic">${ICON[s.id]}</div><div><div class="nm">${s.nm}</div><div class="tm">${s.time} · ${s.med}</div></div><div class="st ${k}">${ok?'✅ '+ok+'<br><span style="font-size:16px">드셨어요</span>':t}</div></div>`};
+  document.getElementById('slots').innerHTML=S.slots.map(s=>row(s)).join('');
+  document.getElementById('famSlots').innerHTML=S.slots.map(s=>row(s,1)).join('');
+  const tb=document.getElementById('topicBox');if(tb)tb.textContent=S.topic;
+  document.getElementById('log').innerHTML=D.log.length?D.log.map(l=>`<li><span class="t">${l.t}</span><br>${l.m}</li>`).join(''):'<li>오늘 보낸 알림이 아직 없어요</li>';
+}
+function takeNow(){
+  const c=current(); if(!c)return;
+  const t=hhmm(new Date()); D.taken[c.id]=t;
+  D.log.unshift({k:'ok'+c.id,t,m:`✅ ${who3()} ${c.nm}을 드셨어요.`}); save('gs_day',D);
+  const day=dkey(new Date()); unpub(`m-${day}-${c.id}`);
+  pub({title:`✅ ${who3()} ${c.nm}을 드셨어요`,message:`${t}에 귤손녀 약 알림에서 버튼을 누르셨어요.`,sequence_id:`t-${day}-${c.id}`,tags:['white_check_mark']})
+    .then(ok=>toast(ok?`📱 ${S.fam}에게 알림을 보냈어요`:'⚠️ 알림을 못 보냈어요',ok?`${who3()} ${c.nm}을 드셨어요 ✅`:'인터넷 연결을 확인해 주세요'));
+  party(); render(); speak('done');
+}
+function who3(){return S.who==='c'?'가족분이':WHO[S.who]+'께서'}
+function toast(a,b){const el=document.getElementById('toast');el.innerHTML=`<small>${a}</small>${b}`;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),3200)}
+function party(){const c=document.getElementById('conf');for(let i=0;i<22;i++){const e=document.createElement('i');e.textContent=['🍊','💛','⭐','🎉'][i%4];e.style.left=Math.random()*100+'%';e.style.animationDelay=Math.random()*.5+'s';c.appendChild(e);setTimeout(()=>e.remove(),2600)}}
+const FAMS=["딸","아들","큰딸","작은딸","큰아들","작은아들","며느리","사위","손자","손녀","엄마","아빠","둘째아들","셋째아들","둘째딸","셋째딸"];
+const FAM_ORDER=["딸","큰딸","둘째딸","셋째딸","작은딸","아들","큰아들","둘째아들","셋째아들","작은아들","며느리","사위","손자","손녀","엄마","아빠"];
+let _aud;
+function voiceKey(){const c=current();if(c)return c.id;return next()?'next':'all'}
+function play(src,then){try{if(_aud){_aud.onended=null;_aud.pause()}_aud=new Audio(src);_aud.onended=then||null;const p=_aud.play();if(p&&p.catch)p.catch(()=>{})}catch(e){}}
+function speak(k){
+  const w=S.who||'gm'; k=k||voiceKey();
+  const fi=FAMS.indexOf((S.fam||'').replace(/\s/g,'').replace('세째','셋째'));
+  if(k==='done'&&fi>=0){play(VOICE[w+'_done1'],()=>play(VOICE['f'+fi]));return}
+  play(VOICE[w+'_'+k]);
+}
+function go(v,btn){['home','family','set'].forEach(x=>document.getElementById('v-'+x).classList.toggle('hidden',x!==v));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b===btn));if(v==='set')fillSet();render();scrollTo(0,0)}
+function fillSet(){
+  sFam.value=S.fam;drawWho();drawChips();
+  document.getElementById('sSlots').innerHTML=S.slots.map((s,i)=>`<label>${ICON[s.id]} ${s.nm}</label><div class="row"><input type="time" id="t${i}" value="${s.time}"><input id="m${i}" value="${s.med}" placeholder="약 이름"></div>`).join('');
+}
+function drawChips(){sChips.innerHTML=FAM_ORDER.map(f=>`<button class="${S.fam===f?'on':''}" onclick="S.fam='${f}';sFam.value='${f}';save('gs_set',S);drawChips();render()">${f}</button>`).join('')}
+function drawWho(){sWho.innerHTML=[['gm','<b>👵</b>할머니',''],['gp','<b>👴</b>할아버지',''],['c','<b>🙂</b>이름 없이','자녀·누구나']].map(([k,t,s])=>`<button class="${S.who===k?'on':''}" onclick="S.who='${k}';drawWho();save('gs_set',S);render();speak();scheduleMisses()">${t}${s?'<small>'+s+'</small>':''}</button>`).join('')}
+function saveSet(){
+  S.fam=sFam.value.trim()||'가족';
+  S.slots.forEach((s,i)=>{s.time=document.getElementById('t'+i).value||s.time;s.med=document.getElementById('m'+i).value.trim()||'약'});
+  save('gs_set',S);toast('설정','저장했어요 👍');render();scheduleMisses();
+}
+function resetToday(){D={day:today,taken:{},log:[]};save('gs_day',D);const sc=load('gs_sched',{sig:'',keys:{}});Object.keys(sc.keys).forEach(k=>{if(k.includes(dkey(new Date())))delete sc.keys[k]});save('gs_sched',sc);scheduleMisses();toast('체험용','오늘 기록을 지웠어요');render()}
+function copyTxt(t,msg){try{navigator.clipboard.writeText(t).then(()=>toast('복사',msg),()=>toast('복사가 안 돼요',t))}catch(e){toast('복사가 안 돼요',t)}}
+function watchUrl(){return location.origin+location.pathname+'#f='+S.topic+'&w='+S.who+'&t='+S.slots.map(s=>s.time).join(',')}
+function shareLink(){const u=watchUrl(),txt=`${WHO[S.who]||'부모님'} 약 드셨는지 여기서 볼 수 있어요 🍊`;
+  if(navigator.share){navigator.share({title:'귤손녀 약 알림',text:txt,url:u}).catch(()=>{})}else copyTxt(txt+'\n'+u,'링크를 복사했어요. 카톡에 붙여 넣어 보내 주세요')}
+function testAlert(){pub({title:'🍊 귤손녀 약 알림 시험',message:`${S.fam}님, 알림이 잘 오나요? 앞으로 약 드신 소식을 여기로 알려 드릴게요.`,tags:['tangerine']}).then(ok=>toast(ok?'시험 알림을 보냈어요':'⚠️ 못 보냈어요',ok?'자녀분 휴대폰을 확인해 보세요':'인터넷 연결을 확인해 주세요'))}
+// ---- 자녀용 현황 화면 (#f=연결번호)
+const HP=new URLSearchParams(location.hash.slice(1));
+if(HP.get('f')){
+  const topic=HP.get('f'), w=HP.get('w')||'c', times=(HP.get('t')||'08:00,12:30,19:00').split(',');
+  const slots=['morning','lunch','evening'].map((id,i)=>({id,nm:['아침 약','점심 약','저녁 약'][i],time:times[i]||''}));
+  document.getElementById('nav').classList.add('hidden');
+  ['home','family','set'].forEach(x=>document.getElementById('v-'+x).classList.add('hidden'));
+  document.getElementById('v-watch').classList.remove('hidden');
+  document.getElementById('wTitle').textContent=`${WHO[w]||'부모님'} 약 드셨는지 확인`;
+  document.getElementById('wTopic').textContent=topic;
+  document.getElementById('wCopy').onclick=()=>copyTxt(topic,'연결 번호를 복사했어요');
+  async function poll(){
+    let msgs=[];
+    try{const r=await fetch(`${NTFY}/${topic}/json?poll=1&since=48h`);(await r.text()).split('\n').forEach(l=>{try{const m=JSON.parse(l);if(m.event==='message')msgs.push(m)}catch(e){}})}
+    catch(e){document.getElementById('wNote').textContent='⚠️ 불러오지 못했어요. 인터넷 연결을 확인해 주세요.';return}
+    const day=dkey(new Date()), nowS=Date.now()/1000;
+    const seq=m=>m.sequence_id||m.id;
+    document.getElementById('wSlots').innerHTML=slots.map(s=>{
+      const tk=msgs.find(m=>seq(m)===`t-${day}-${s.id}`), ms=msgs.find(m=>seq(m)===`m-${day}-${s.id}`);
+      const[hh,mm]=(s.time||'0:0').split(':');const due=new Date();due.setHours(+hh,+mm,0,0);
+      let st=tk?`<span class="ok">✅ ${new Date(tk.time*1000).toTimeString().slice(0,5)}<br><span style="font-size:16px">드셨어요</span></span>`:(ms||Date.now()>+due+1800e3)?'<span class="miss">⚠️ 아직 안 드심</span>':(Date.now()<due-3600e3?`<span class="wait">⏰ ${s.time}</span>`:'<span class="due">⏳ 기다리는 중</span>');
+      return `<div class="slot"><div class="ic">${ICON[s.id]}</div><div><div class="nm">${s.nm}</div><div class="tm">${s.time}</div></div><div class="st">${st}</div></div>`}).join('');
+    const list=msgs.filter(m=>m.time>nowS-86400*2).sort((a,b)=>b.time-a.time).slice(0,20);
+    document.getElementById('wLog').innerHTML=list.length?list.map(m=>{const d=new Date(m.time*1000);return `<li><span class="t">${d.getMonth()+1}/${d.getDate()} ${d.toTimeString().slice(0,5)}</span><br><b>${(m.title||'').replace(/</g,'&lt;')}</b><br>${(m.message||'').replace(/</g,'&lt;')}</li>`}).join(''):'<li>아직 받은 알림이 없어요</li>';
+    document.getElementById('wNote').textContent='30초마다 새로 확인해요. 마지막 확인 '+new Date().toTimeString().slice(0,5);
+  }
+  poll();setInterval(poll,30000);
+}else{
+  render();setInterval(render,30000);scheduleMisses();
+}
+</script></body></html>
