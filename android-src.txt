@@ -17,8 +17,8 @@ android {
         applicationId 'kr.gyul.yak'
         minSdk 26
         targetSdk 34
-        versionCode 1
-        versionName '1.0'
+        versionCode 2
+        versionName '1.1'
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -166,7 +166,44 @@ public class Bridge {
     }
 
     @JavascriptInterface
-    public String version() { return "1.0"; }
+    public String version() { return "1.1"; }
+
+    @JavascriptInterface
+    public String status() {
+        try {
+            org.json.JSONObject o = new org.json.JSONObject();
+            android.app.AlarmManager am = (android.app.AlarmManager) c.getSystemService(Context.ALARM_SERVICE);
+            o.put("exact", android.os.Build.VERSION.SDK_INT < 31 || (am != null && am.canScheduleExactAlarms()));
+            android.app.NotificationManager nm = (android.app.NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE);
+            o.put("notif", nm != null && nm.areNotificationsEnabled());
+            o.put("cfg", Sched.p(c).getString("cfg", "").length() > 0);
+            o.put("last", Sched.p(c).getString("last", ""));
+            android.media.AudioManager au = (android.media.AudioManager) c.getSystemService(Context.AUDIO_SERVICE);
+            o.put("alarmVol", au == null ? -1 : au.getStreamVolume(android.media.AudioManager.STREAM_ALARM));
+            return o.toString();
+        } catch (Exception e) { return "{}"; }
+    }
+
+    @JavascriptInterface
+    public void testAlarm(String slot) {
+        android.app.AlarmManager am = (android.app.AlarmManager) c.getSystemService(Context.ALARM_SERVICE);
+        if (am != null) Sched.set(c, am, slot, "dose", System.currentTimeMillis() + 10000, 199);
+    }
+
+    @JavascriptInterface
+    public void openSettings() {
+        try {
+            Intent i;
+            android.app.AlarmManager am = (android.app.AlarmManager) c.getSystemService(Context.ALARM_SERVICE);
+            if (android.os.Build.VERSION.SDK_INT >= 31 && am != null && !am.canScheduleExactAlarms()) {
+                i = new Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, android.net.Uri.parse("package:" + c.getPackageName()));
+            } else {
+                i = new Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, c.getPackageName());
+            }
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            c.startActivity(i);
+        } catch (Exception e) { }
+    }
 }
 @@@FILE android/app/src/main/java/kr/gyul/yak/Sched.java
 package kr.gyul.yak;
@@ -278,6 +315,7 @@ public class AlarmReceiver extends BroadcastReceiver {
         String slot = in.getStringExtra("slot");
         String kind = in.getStringExtra("kind");
         boolean async = false;
+        Sched.p(ctx).edit().putString("last", kind + " " + slot + " " + new java.text.SimpleDateFormat("MM/dd HH:mm:ss", java.util.Locale.KOREA).format(new java.util.Date())).apply();
         try {
             JSONObject o = Sched.cfg(ctx);
             String who = o.optString("who", "gm");

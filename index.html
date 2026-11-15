@@ -112,6 +112,11 @@ input{width:100%;font-size:22px;padding:10px 12px;border-radius:12px;border:2px 
     <div id="sSlots"></div>
     <button class="btn2" onclick="saveSet()">저장하기</button>
     <button class="btn3" onclick="resetToday()">오늘 기록 지우기 (체험용)</button>
+    <div id="appBox" class="hidden" style="margin-top:16px;border-top:2px dashed #e6d3bd;padding-top:12px">
+      <button class="btn2" onclick="testAlarm()">🔔 10초 뒤 울려 보기</button>
+      <div class="note" id="appStat" style="padding:8px 2px 0"></div>
+      <button class="btn3" onclick="try{APP.openSettings()}catch(e){}">휴대폰 알림·알람 설정 열기</button>
+    </div>
   </div>
   <div class="note">※ 이 앱은 약 먹을 시간을 알려 주는 도구예요. 약의 종류·용량·함께 먹어도 되는지는 반드시 의사·약사와 상담하세요.</div>
 </section>
@@ -225,9 +230,12 @@ function speak(k){
 }
 function go(v,btn){['home','family','set'].forEach(x=>document.getElementById('v-'+x).classList.toggle('hidden',x!==v));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b===btn));if(v==='set')fillSet();render();scrollTo(0,0)}
 function fillSet(){
-  sFam.value=S.fam;drawWho();drawChips();
+  sFam.value=S.fam;drawWho();drawChips();appStatus();
   document.getElementById('sSlots').innerHTML=S.slots.map((s,i)=>`<label>${ICON[s.id]} ${s.nm}</label><div class="row"><input type="time" id="t${i}" value="${s.time}"><input id="m${i}" value="${s.med}" placeholder="약 이름"></div>`).join('');
 }
+function appStatus(){const b=document.getElementById('appBox');if(!APP||!APP.status){return}b.classList.remove('hidden');
+  try{const s=JSON.parse(APP.status());document.getElementById('appStat').innerHTML=`알림 허용: ${s.notif?'✅':'❌ 꺼져 있어요'}<br>정확한 시간 알람: ${s.exact?'✅':'❌ 꺼져 있어요'}<br>알람 소리 크기: ${s.alarmVol>0?'✅':'❌ 0이에요(알람 볼륨을 올려 주세요)'}<br>약 시간 등록: ${s.cfg?'✅':'❌'}<br>마지막으로 울린 때: ${s.last||'아직 없음'}`}catch(e){}}
+function testAlarm(){try{syncApp();APP.testAlarm(S.slots[0].id);toast('10초 뒤에 울려요','휴대폰을 잠깐 그대로 두세요');setTimeout(appStatus,13000)}catch(e){toast('앱에서만 돼요','새 앱으로 업데이트해 주세요')}}
 function drawChips(){sChips.innerHTML=FAM_ORDER.map(f=>`<button class="${S.fam===f?'on':''}" onclick="S.fam='${f}';sFam.value='${f}';save('gs_set',S);drawChips();render();syncApp()">${f}</button>`).join('')}
 function drawWho(){sWho.innerHTML=[['gm','<b>👵</b>할머니',''],['gp','<b>👴</b>할아버지',''],['c','<b>🙂</b>이름 없이','자녀·누구나']].map(([k,t,s])=>`<button class="${S.who===k?'on':''}" onclick="S.who='${k}';drawWho();save('gs_set',S);render();speak();scheduleMisses()">${t}${s?'<small>'+s+'</small>':''}</button>`).join('')}
 function saveSet(){
