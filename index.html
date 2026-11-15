@@ -156,7 +156,7 @@ function scheduleMisses(){
       const sec=Math.floor(at/1000);if(sec-nowS<90||sec-nowS>3*86400-900)return;
       if(d===0&&D.taken[s.id])return;
       const key=`m-${dkey(b)}-${s.id}`;if(sch.keys[key])return;sch.keys[key]=sec;save('gs_sched',sch);
-      pub({title:`⚠️ ${who3()} ${s.nm}을 아직 안 드셨어요`,message:`${s.time} 약인데 30분이 지나도록 버튼을 안 누르셨어요. 전화 한 통 드려 보세요.`,delay:String(sec),sequence_id:key,tags:['warning'],priority:4})
+      pub({title:`⚠️ ${who3()} ${s.nm}을 아직 안 드셨어요`,message:`${s.time} 약인데 30분이 지나도록 버튼을 안 누르셨어요. 전화 한 통 드려 보세요.`,delay:String(sec),sequence_id:key,tags:['warning'],priority:5})
         .then(ok=>{if(!ok){const c=load('gs_sched',sch);delete c.keys[key];save('gs_sched',c)}});
     })}
 }
@@ -201,7 +201,7 @@ function takeNow(){
   const t=hhmm(new Date()); D.taken[c.id]=t;
   D.log.unshift({k:'ok'+c.id,t,m:`✅ ${who3()} ${c.nm}을 드셨어요.`}); save('gs_day',D);
   const day=dkey(new Date()); unpub(`m-${day}-${c.id}`);
-  pub({title:`✅ ${who3()} ${c.nm}을 드셨어요`,message:`${t}에 귤손녀 약 알림에서 버튼을 누르셨어요.`,sequence_id:`t-${day}-${c.id}`,tags:['white_check_mark']})
+  pub({title:`✅ ${who3()} ${c.nm}을 드셨어요`,message:`${t}에 귤손녀 약 알림에서 버튼을 누르셨어요.`,sequence_id:`t-${day}-${c.id}`,tags:['white_check_mark'],priority:4})
     .then(ok=>toast(ok?`📱 ${S.fam}에게 알림을 보냈어요`:'⚠️ 알림을 못 보냈어요',ok?`${who3()} ${c.nm}을 드셨어요 ✅`:'인터넷 연결을 확인해 주세요'));
   party(); render(); speak('done');
 }
@@ -236,7 +236,7 @@ function copyTxt(t,msg){try{navigator.clipboard.writeText(t).then(()=>toast('복
 function watchUrl(){return location.origin+location.pathname+'#f='+S.topic+'&w='+S.who+'&t='+S.slots.map(s=>s.time).join(',')}
 function shareLink(){const u=watchUrl(),txt=`${WHO[S.who]||'부모님'} 약 드셨는지 여기서 볼 수 있어요 🍊`;
   if(navigator.share){navigator.share({title:'귤손녀 약 알림',text:txt,url:u}).catch(()=>{})}else copyTxt(txt+'\n'+u,'링크를 복사했어요. 카톡에 붙여 넣어 보내 주세요')}
-function testAlert(){pub({title:'🍊 귤손녀 약 알림 시험',message:`${S.fam}님, 알림이 잘 오나요? 앞으로 약 드신 소식을 여기로 알려 드릴게요.`,tags:['tangerine']}).then(ok=>toast(ok?'시험 알림을 보냈어요':'⚠️ 못 보냈어요',ok?'자녀분 휴대폰을 확인해 보세요':'인터넷 연결을 확인해 주세요'))}
+function testAlert(){pub({title:'🍊 귤손녀 약 알림 시험',message:`${S.fam}님, 알림이 잘 오나요? 앞으로 약 드신 소식을 여기로 알려 드릴게요.`,tags:['tangerine'],priority:4}).then(ok=>toast(ok?'시험 알림을 보냈어요':'⚠️ 못 보냈어요',ok?'자녀분 휴대폰을 확인해 보세요':'인터넷 연결을 확인해 주세요'))}
 // ---- 자녀용 현황 화면 (#f=연결번호)
 const HP=new URLSearchParams(location.hash.slice(1));
 if(HP.get('f')){
