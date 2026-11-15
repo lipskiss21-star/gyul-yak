@@ -1,0 +1,398 @@
+@@@FILE android/settings.gradle
+pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+dependencyResolutionManagement { repositories { google(); mavenCentral() } }
+rootProject.name = "gyulyak"
+include ':app'
+@@@FILE android/build.gradle
+plugins { id 'com.android.application' version '8.5.2' apply false }
+@@@FILE android/gradle.properties
+org.gradle.jvmargs=-Xmx2g
+android.useAndroidX=false
+@@@FILE android/app/build.gradle
+plugins { id 'com.android.application' }
+android {
+    namespace 'kr.gyul.yak'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'kr.gyul.yak'
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+@@@FILE android/app/src/main/AndroidManifest.xml
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <application
+        android:label="귤손녀 약 알림"
+        android:icon="@mipmap/ic_launcher"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <receiver android:name=".AlarmReceiver" android:exported="false" />
+        <receiver android:name=".BootReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>
+@@@FILE android/app/src/main/java/kr/gyul/yak/MainActivity.java
+package kr.gyul.yak;
+
+import android.Manifest;
+import android.app.Activity;
+import android.app.AlarmManager;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.provider.Settings;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+
+public class MainActivity extends Activity {
+    static final String URL = "https://lipskiss21-star.github.io/gyul-yak/";
+    WebView wv;
+
+    @Override
+    protected void onCreate(Bundle b) {
+        super.onCreate(b);
+        getWindow().setStatusBarColor(0xFFFF8A1F);
+        wv = new WebView(this);
+        setContentView(wv);
+        WebSettings s = wv.getSettings();
+        s.setJavaScriptEnabled(true);
+        s.setDomStorageEnabled(true);
+        s.setMediaPlaybackRequiresUserGesture(false);
+        wv.addJavascriptInterface(new Bridge(this), "GyulApp");
+        wv.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
+                Uri u = r.getUrl();
+                String h = u.getHost();
+                if (h != null && h.endsWith("github.io")) return false;
+                try { startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (Exception e) { }
+                return true;
+            }
+        });
+        wv.loadUrl(URL);
+        askPermissions();
+        Sched.scheduleAll(this);
+    }
+
+    void askPermissions() {
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1);
+        }
+        SharedPreferences p = Sched.p(this);
+        if (Build.VERSION.SDK_INT >= 31 && !p.getBoolean("askedExact", false)) {
+            AlarmManager am = (AlarmManager) getSystemService(ALARM_SERVICE);
+            if (am != null && !am.canScheduleExactAlarms()) {
+                p.edit().putBoolean("askedExact", true).apply();
+                try {
+                    startActivity(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                            Uri.parse("package:" + getPackageName())));
+                } catch (Exception e) { }
+            }
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Sched.scheduleAll(this);
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (wv != null && wv.canGoBack()) wv.goBack();
+        else super.onBackPressed();
+    }
+}
+@@@FILE android/app/src/main/java/kr/gyul/yak/Bridge.java
+package kr.gyul.yak;
+
+import android.content.Context;
+import android.content.Intent;
+import android.webkit.JavascriptInterface;
+
+public class Bridge {
+    final Context c;
+    Bridge(Context c) { this.c = c.getApplicationContext(); }
+
+    @JavascriptInterface
+    public void setSchedule(String json) {
+        Sched.p(c).edit().putString("cfg", json).apply();
+        Sched.scheduleAll(c);
+    }
+
+    @JavascriptInterface
+    public void taken(String slot) {
+        Sched.p(c).edit().putBoolean("t_" + Sched.day(System.currentTimeMillis()) + "_" + slot, true).apply();
+    }
+
+    @JavascriptInterface
+    public void share(String text) {
+        Intent i = new Intent(Intent.ACTION_SEND);
+        i.setType("text/plain");
+        i.putExtra(Intent.EXTRA_TEXT, text);
+        Intent ch = Intent.createChooser(i, "링크 보내기");
+        ch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        c.startActivity(ch);
+    }
+
+    @JavascriptInterface
+    public String version() { return "1.0"; }
+}
+@@@FILE android/app/src/main/java/kr/gyul/yak/Sched.java
+package kr.gyul.yak;
+
+import android.app.AlarmManager;
+import android.app.PendingIntent;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.os.Build;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Locale;
+
+public class Sched {
+    static SharedPreferences p(Context c) { return c.getSharedPreferences("gyul", Context.MODE_PRIVATE); }
+
+    static String day(long ms) { return new SimpleDateFormat("yyyyMMdd", Locale.KOREA).format(new Date(ms)); }
+
+    static JSONObject cfg(Context c) {
+        try { return new JSONObject(p(c).getString("cfg", "{}")); } catch (Exception e) { return new JSONObject(); }
+    }
+
+    static void scheduleAll(Context c) {
+        try {
+            JSONArray sl = cfg(c).optJSONArray("slots");
+            if (sl == null) return;
+            AlarmManager am = (AlarmManager) c.getSystemService(Context.ALARM_SERVICE);
+            if (am == null) return;
+            for (int i = 0; i < sl.length() && i < 10; i++) {
+                JSONObject s = sl.getJSONObject(i);
+                String id = s.optString("id");
+                String t = s.optString("time", "");
+                if (!t.matches("\\d{1,2}:\\d{2}")) continue;
+                set(c, am, id, "dose", next(t, 0), 100 + i * 2);
+                set(c, am, id, "miss", next(t, 30), 101 + i * 2);
+            }
+        } catch (Exception e) { }
+    }
+
+    static long next(String t, int addMin) {
+        String[] a = t.split(":");
+        Calendar k = Calendar.getInstance();
+        k.set(Calendar.HOUR_OF_DAY, Integer.parseInt(a[0]));
+        k.set(Calendar.MINUTE, Integer.parseInt(a[1]));
+        k.set(Calendar.SECOND, 0);
+        k.set(Calendar.MILLISECOND, 0);
+        k.add(Calendar.MINUTE, addMin);
+        if (k.getTimeInMillis() <= System.currentTimeMillis() + 5000) k.add(Calendar.DAY_OF_MONTH, 1);
+        return k.getTimeInMillis();
+    }
+
+    static void set(Context c, AlarmManager am, String id, String kind, long at, int rc) {
+        Intent i = new Intent(c, AlarmReceiver.class).putExtra("slot", id).putExtra("kind", kind);
+        PendingIntent pi = PendingIntent.getBroadcast(c, rc, i,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        if (Build.VERSION.SDK_INT >= 31 && !am.canScheduleExactAlarms()) {
+            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi);
+        } else {
+            am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi);
+        }
+    }
+}
+@@@FILE android/app/src/main/java/kr/gyul/yak/BootReceiver.java
+package kr.gyul.yak;
+
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+
+public class BootReceiver extends BroadcastReceiver {
+    @Override
+    public void onReceive(Context c, Intent in) { Sched.scheduleAll(c); }
+}
+@@@FILE android/app/src/main/java/kr/gyul/yak/AlarmReceiver.java
+package kr.gyul.yak;
+
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.res.AssetFileDescriptor;
+import android.media.AudioAttributes;
+import android.media.MediaPlayer;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+
+public class AlarmReceiver extends BroadcastReceiver {
+    static final String CH = "dose2";
+
+    @Override
+    public void onReceive(Context c, Intent in) {
+        final PendingResult pr = goAsync();
+        final Context ctx = c.getApplicationContext();
+        String slot = in.getStringExtra("slot");
+        String kind = in.getStringExtra("kind");
+        boolean async = false;
+        try {
+            JSONObject o = Sched.cfg(ctx);
+            String who = o.optString("who", "gm");
+            String topic = o.optString("topic", "");
+            JSONObject s = find(o.optJSONArray("slots"), slot);
+            String nm = s == null ? "약" : s.optString("nm", "약");
+            String time = s == null ? "" : s.optString("time", "");
+            String name = "gm".equals(who) ? "할머니" : "gp".equals(who) ? "할아버지" : "";
+            if ("dose".equals(kind)) {
+                String title = name.isEmpty() ? nm + " 드실 시간이에요! 💊" : name + "~ " + nm + " 드실 시간이에요! 💊";
+                notifyDose(ctx, title, "눌러서 귤손녀 앱을 열고 '약 먹었어요'를 눌러 주세요.", slot);
+                async = play(ctx, who + "_" + slot, pr);
+            } else if ("miss".equals(kind)) {
+                String d = Sched.day(System.currentTimeMillis() - 31 * 60 * 1000L);
+                boolean taken = Sched.p(ctx).getBoolean("t_" + d + "_" + slot, false);
+                if (!taken && !topic.isEmpty()) {
+                    String subj = "gm".equals(who) ? "할머니께서" : "gp".equals(who) ? "할아버지께서" : "가족분이";
+                    final JSONObject m = new JSONObject();
+                    m.put("topic", topic);
+                    m.put("title", "⚠️ " + subj + " " + nm + "을 아직 안 드셨어요");
+                    m.put("message", time + " 약인데 30분이 지나도록 버튼을 안 누르셨어요. 전화 한 통 드려 보세요.");
+                    m.put("priority", 5);
+                    m.put("sequence_id", "m-" + d + "-" + slot);
+                    m.put("tags", new JSONArray().put("warning"));
+                    async = true;
+                    new Thread(() -> { post(m.toString()); pr.finish(); }).start();
+                }
+            }
+        } catch (Exception e) {
+        } finally {
+            Sched.scheduleAll(ctx);
+            if (!async) pr.finish();
+        }
+    }
+
+    static JSONObject find(JSONArray a, String id) {
+        if (a == null) return null;
+        for (int i = 0; i < a.length(); i++) {
+            JSONObject s = a.optJSONObject(i);
+            if (s != null && id != null && id.equals(s.optString("id"))) return s;
+        }
+        return null;
+    }
+
+    static void notifyDose(Context c, String title, String text, String slot) {
+        NotificationManager nm = (NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (nm == null) return;
+        NotificationChannel ch = new NotificationChannel(CH, "약 시간 알림", NotificationManager.IMPORTANCE_HIGH);
+        ch.setSound(null, null);
+        ch.enableVibration(true);
+        ch.setVibrationPattern(new long[]{0, 600, 300, 600});
+        nm.createNotificationChannel(ch);
+        Intent open = new Intent(c, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        PendingIntent pi = PendingIntent.getActivity(c, 7, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        Notification n = new Notification.Builder(c, CH)
+                .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setStyle(new Notification.BigTextStyle().bigText(text))
+                .setCategory(Notification.CATEGORY_REMINDER)
+                .setContentIntent(pi)
+                .setAutoCancel(true)
+                .build();
+        try { nm.notify(("n" + slot).hashCode(), n); } catch (Exception e) { }
+    }
+
+    static boolean play(Context c, String key, PendingResult pr) {
+        int id = c.getResources().getIdentifier(key, "raw", c.getPackageName());
+        if (id == 0) id = c.getResources().getIdentifier("c_" + key.substring(key.indexOf('_') + 1), "raw", c.getPackageName());
+        if (id == 0) return false;
+        try {
+            MediaPlayer mp = new MediaPlayer();
+            mp.setAudioAttributes(new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build());
+            AssetFileDescriptor afd = c.getResources().openRawResourceFd(id);
+            mp.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
+            afd.close();
+            mp.prepare();
+            mp.setOnCompletionListener(m -> { m.release(); pr.finish(); });
+            mp.setOnErrorListener((m, w, x) -> { m.release(); pr.finish(); return true; });
+            mp.start();
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    static void post(String body) {
+        try {
+            HttpURLConnection h = (HttpURLConnection) new URL("https://ntfy.sh/").openConnection();
+            h.setRequestMethod("POST");
+            h.setDoOutput(true);
+            h.setConnectTimeout(10000);
+            h.setReadTimeout(10000);
+            h.setRequestProperty("Content-Type", "application/json");
+            OutputStream os = h.getOutputStream();
+            os.write(body.getBytes(StandardCharsets.UTF_8));
+            os.close();
+            h.getResponseCode();
+            h.disconnect();
+        } catch (Exception e) { }
+    }
+}
+@@@FILE android/prep.py
+# 빌드 전에 voice.js의 목소리를 res/raw/*.mp3로, 아이콘을 mipmap으로 꺼내요.
+import base64, os, re, shutil
+root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+res = os.path.join(root, 'android', 'app', 'src', 'main', 'res')
+raw = os.path.join(res, 'raw'); os.makedirs(raw, exist_ok=True)
+s = open(os.path.join(root, 'voice.js'), encoding='utf-8').read()
+n = 0
+for k, b in re.findall(r'"([a-z0-9_]+)":\s*"data:audio/mpeg;base64,([^"]+)"', s):
+    open(os.path.join(raw, k + '.mp3'), 'wb').write(base64.b64decode(b)); n += 1
+mip = os.path.join(res, 'mipmap-xxxhdpi'); os.makedirs(mip, exist_ok=True)
+shutil.copy(os.path.join(root, 'icon-192.png'), os.path.join(mip, 'ic_launcher.png'))
+print('voices', n)
+assert n >= 30
