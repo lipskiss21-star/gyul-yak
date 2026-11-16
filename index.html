@@ -57,7 +57,7 @@ input{width:100%;font-size:22px;padding:10px 12px;border-radius:12px;border:2px 
 .hidden{display:none}
 .steps{padding-left:22px;margin:6px 0 10px;font-size:19px;line-height:1.5}.steps li{margin-bottom:14px}.lnk{color:#c25e00;font-weight:700}.code{margin-top:8px;background:#FFF0DD;border:2px dashed var(--or);border-radius:12px;padding:10px;font-size:22px;font-weight:900;text-align:center;letter-spacing:1px;word-break:break-all}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.chips button{font-family:inherit;font-size:18px;font-weight:700;padding:8px 14px;border-radius:999px;border:2px solid #e6d3bd;background:#fff;color:var(--ink)}.chips button.on{border-color:var(--or);background:#FFF0DD;color:#c25e00}
-.who{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}.who button{font-family:inherit;font-size:20px;font-weight:700;padding:14px 4px;border-radius:14px;border:3px solid #e6d3bd;background:#fff;color:var(--ink)}.who button.on{border-color:var(--or);background:#FFF0DD;color:#c25e00}.who b{display:block;font-size:30px}.who button{font-size:18px;white-space:nowrap}.who small{display:block;font-size:14px;font-weight:500;color:#8a6a4f}
+.who{display:grid;grid-template-columns:1fr 1fr;gap:8px}.who button{font-family:inherit;font-size:20px;font-weight:700;padding:14px 4px;border-radius:14px;border:3px solid #e6d3bd;background:#fff;color:var(--ink)}.who button.on{border-color:var(--or);background:#FFF0DD;color:#c25e00}.who b{display:block;font-size:30px}.who button{font-size:18px;white-space:nowrap}.who small{display:block;font-size:14px;font-weight:500;color:#8a6a4f}
 .fam-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}
 .pill{display:inline-block;padding:4px 12px;border-radius:999px;font-size:17px;font-weight:700}
 </style></head>
@@ -148,13 +148,13 @@ function rnd(n){const a='abcdefghijkmnpqrstuvwxyz23456789';let s='';crypto.getRa
 if(!S.topic){S.topic='gyul-'+rnd(10);save('gs_set',S)}
 const NTFY='https://ntfy.sh';
 const APP=window.GyulApp||null;
-function syncApp(){try{if(APP)APP.setSchedule(JSON.stringify({who:S.who,fam:S.fam,topic:S.topic,slots:S.slots.map(s=>({id:s.id,nm:s.nm,time:s.time}))}))}catch(e){}}
+function syncApp(){try{if(APP)APP.setSchedule(JSON.stringify({who:S.who,myName:(S.myName||'').trim(),fam:S.fam,topic:S.topic,slots:S.slots.map(s=>({id:s.id,nm:s.nm,time:s.time}))}))}catch(e){}}
 const dkey=d=>d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
 async function pub(o,topic){try{const r=await fetch(NTFY+'/',{method:'POST',body:JSON.stringify(Object.assign({topic:topic||S.topic},o))});return r.ok}catch(e){return false}}
 function unpub(seq){try{fetch(`${NTFY}/${S.topic}/${seq}`,{method:'DELETE'}).catch(()=>{})}catch(e){}}
 function scheduleMisses(){
   syncApp();
-  const sig=S.slots.map(s=>s.time).join(',')+'|'+S.who+'|'+S.topic;
+  const sig=S.slots.map(s=>s.time).join(',')+'|'+S.who+'|'+(S.myName||'')+'|'+S.topic;
   let sch=load('gs_sched',{sig:'',keys:{}});
   const nowS=Date.now()/1000;
   if(APP){Object.keys(sch.keys).forEach(k=>{if(sch.keys[k]>nowS)unpub(k)});save('gs_sched',{sig:'app',keys:{}});return}
@@ -171,6 +171,8 @@ function scheduleMisses(){
     })}
 }
 const WHO={gm:'할머니',gp:'할아버지',c:''};
+function callName(w){w=w||S.who;if(w==='me')return (S.myName||'').trim()?(S.myName||'').trim()+'님':'';return WHO[w]||''}
+function vp(){return S.who==='me'?'c':(S.who||'gm')}
 D=load('gs_day',{day:today,taken:{},log:[]}); if(D.day!==today)D={day:today,taken:{},log:[]};
 const mins=t=>{const[a,b]=t.split(':');return +a*60+ +b};
 const nowM=()=>{const n=new Date();return n.getHours()*60+n.getMinutes()};
@@ -187,7 +189,7 @@ function current(){ // 지금 먹어야 할 약: 시간 지난(또는 1시간 �
 }
 function next(){return S.slots.find(s=>!D.taken[s.id])}
 function msgText(){
-  const c=current(), n=WHO[S.who];
+  const c=current(), n=callName();
   if(c) return n?`${n}~ ${c.nm} 드실 시간이에요!<br>${c.med} 꼭 챙기세요 💛`:`${c.nm} 드실 시간이에요!<br>${c.med} 꼭 챙기세요 💛`;
   const x=next();
   if(x) return `${n?n+', ':''}잘하셨어요!<br>다음은 ${x.time} ${x.nm}이에요 😊`;
@@ -215,7 +217,7 @@ function takeNow(){
     .then(ok=>toast(ok?`📱 ${S.fam}에게 알림을 보냈어요`:'⚠️ 알림을 못 보냈어요',ok?`${who3()} ${c.nm}을 드셨어요 ✅`:'인터넷 연결을 확인해 주세요'));
   party(); render(); speak('done');
 }
-function who3(){return S.who==='c'?'가족분이':WHO[S.who]+'께서'}
+function who3(){if(S.who==='me')return callName()?callName()+'이':'가족분이';return S.who==='c'?'가족분이':WHO[S.who]+'께서'}
 function toast(a,b){const el=document.getElementById('toast');el.innerHTML=`<small>${a}</small>${b}`;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),3200)}
 function party(){const c=document.getElementById('conf');for(let i=0;i<22;i++){const e=document.createElement('i');e.textContent=['🍊','💛','⭐','🎉'][i%4];e.style.left=Math.random()*100+'%';e.style.animationDelay=Math.random()*.5+'s';c.appendChild(e);setTimeout(()=>e.remove(),2600)}}
 const FAMS=["딸","아들","큰딸","작은딸","큰아들","작은아들","며느리","사위","손자","손녀","엄마","아빠","둘째아들","셋째아들","둘째딸","셋째딸"];
@@ -224,7 +226,7 @@ let _aud;
 function voiceKey(){const c=current();if(c)return c.id;return next()?'next':'all'}
 function play(src,then){try{if(_aud){_aud.onended=null;_aud.pause()}_aud=new Audio(src);_aud.onended=then||null;const p=_aud.play();if(p&&p.catch)p.catch(()=>{})}catch(e){}}
 function speak(k){
-  const w=S.who||'gm'; k=k||voiceKey();
+  const w=vp(); k=k||voiceKey();
   const fi=FAMS.indexOf((S.fam||'').replace(/\s/g,'').replace('세째','셋째'));
   if(k==='done'&&fi>=0){play(VOICE[w+'_done1'],()=>play(VOICE['f'+fi]));return}
   play(VOICE[w+'_'+k]);
@@ -238,7 +240,7 @@ function appStatus(){const b=document.getElementById('appBox');if(!APP||!APP.sta
   try{const s=JSON.parse(APP.status());document.getElementById('appStat').innerHTML=`알림 허용: ${s.notif?'✅':'❌ 꺼져 있어요'}<br>정확한 시간 알람: ${s.exact?'✅':'❌ 꺼져 있어요'}<br>알람 소리 크기: ${s.alarmVol>0?'✅':'❌ 0이에요(알람 볼륨을 올려 주세요)'}<br>약 시간 등록: ${s.cfg?'✅':'❌'}<br>마지막으로 울린 때: ${s.last||'아직 없음'}`}catch(e){}}
 function testAlarm(){try{syncApp();APP.testAlarm(S.slots[0].id);toast('10초 뒤에 울려요','휴대폰을 잠깐 그대로 두세요');setTimeout(appStatus,13000)}catch(e){toast('앱에서만 돼요','새 앱으로 업데이트해 주세요')}}
 function drawChips(){sChips.innerHTML=FAM_ORDER.map(f=>`<button class="${S.fam===f?'on':''}" onclick="S.fam='${f}';sFam.value='${f}';save('gs_set',S);drawChips();render();syncApp()">${f}</button>`).join('')}
-function drawWho(){sWho.innerHTML=[['gm','<b>👵</b>할머니',''],['gp','<b>👴</b>할아버지',''],['c','<b>🙂</b>이름 없이','자녀·누구나']].map(([k,t,s])=>`<button class="${S.who===k?'on':''}" onclick="S.who='${k}';drawWho();save('gs_set',S);render();speak();scheduleMisses()">${t}${s?'<small>'+s+'</small>':''}</button>`).join('')}
+function drawWho(){sWho.innerHTML=[['gm','<b>👵</b>할머니',''],['gp','<b>👴</b>할아버지',''],['c','<b>🙂</b>이름 없이','자녀·누구나'],['me','<b>🙋</b>내 이름','직접 쓰기']].map(([k,t,s])=>`<button class="${S.who===k?'on':''}" onclick="S.who='${k}';drawWho();save('gs_set',S);render();speak();scheduleMisses()">${t}${s?'<small>'+s+'</small>':''}</button>`).join('')+`<input id="sMyName" class="${S.who==='me'?'':'hidden'}" style="grid-column:1/-1" placeholder="이름을 적어 주세요 (예: 용배)" value="${(S.myName||'').replace(/"/g,'')}" oninput="S.myName=this.value;save('gs_set',S);render()" onchange="syncApp();scheduleMisses()">`}
 function saveSet(){
   const nt=(sTopic.value||'').trim().toLowerCase(); if(/^gyul-[a-z0-9]{6,20}$/.test(nt)&&nt!==S.topic){S.topic=nt;try{localStorage.removeItem('gs_sched')}catch(e){}}
   S.fam=sFam.value.trim()||'가족';
@@ -247,8 +249,8 @@ function saveSet(){
 }
 function resetToday(){D={day:today,taken:{},log:[]};save('gs_day',D);const sc=load('gs_sched',{sig:'',keys:{}});Object.keys(sc.keys).forEach(k=>{if(k.includes(dkey(new Date())))delete sc.keys[k]});save('gs_sched',sc);scheduleMisses();toast('체험용','오늘 기록을 지웠어요');render()}
 function copyTxt(t,msg){try{navigator.clipboard.writeText(t).then(()=>toast('복사',msg),()=>toast('복사가 안 돼요',t))}catch(e){toast('복사가 안 돼요',t)}}
-function watchUrl(){return location.origin+location.pathname+'#f='+S.topic+'&w='+S.who+'&t='+S.slots.map(s=>s.time).join(',')}
-function shareLink(){const u=watchUrl(),txt=`${WHO[S.who]||'부모님'} 약 드셨는지 여기서 볼 수 있어요 🍊`;
+function watchUrl(){return location.origin+location.pathname+'#f='+S.topic+'&w='+S.who+(S.who==='me'&&S.myName?'&n='+encodeURIComponent(S.myName.trim()):'')+'&t='+S.slots.map(s=>s.time).join(',')}
+function shareLink(){const u=watchUrl(),txt=`${callName()||'부모님'} 약 드셨는지 여기서 볼 수 있어요 🍊`;
   if(APP&&APP.share){try{APP.share(txt+'\n'+u);return}catch(e){}}
   if(navigator.share){navigator.share({title:'귤손녀 약 알림',text:txt,url:u}).catch(()=>{})}else copyTxt(txt+'\n'+u,'링크를 복사했어요. 카톡에 붙여 넣어 보내 주세요')}
 function testAlert(){pub({title:'🍊 귤손녀 약 알림 시험',message:`${S.fam}님, 알림이 잘 오나요? 앞으로 약 드신 소식을 여기로 알려 드릴게요.`,tags:['tangerine'],priority:4}).then(ok=>toast(ok?'시험 알림을 보냈어요':'⚠️ 못 보냈어요',ok?'자녀분 휴대폰을 확인해 보세요':'인터넷 연결을 확인해 주세요'))}
@@ -260,7 +262,7 @@ if(HP.get('f')){
   document.getElementById('nav').classList.add('hidden');
   ['home','family','set'].forEach(x=>document.getElementById('v-'+x).classList.add('hidden'));
   document.getElementById('v-watch').classList.remove('hidden');
-  document.getElementById('wTitle').textContent=`${WHO[w]||'부모님'} 약 드셨는지 확인`;
+  document.getElementById('wTitle').textContent=`${w==='me'&&HP.get('n')?HP.get('n')+'님':(WHO[w]||'부모님')} 약 드셨는지 확인`;
   document.getElementById('wTopic').textContent=topic;
   document.getElementById('wCopy').onclick=()=>copyTxt(topic,'연결 번호를 복사했어요');
   async function poll(){

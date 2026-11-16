@@ -17,8 +17,8 @@ android {
         applicationId 'kr.gyul.yak'
         minSdk 26
         targetSdk 34
-        versionCode 4
-        versionName '1.3'
+        versionCode 5
+        versionName '1.4'
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -166,7 +166,7 @@ public class Bridge {
     }
 
     @JavascriptInterface
-    public String version() { return "1.3"; }
+    public String version() { return "1.4"; }
 
     @JavascriptInterface
     public String status() {
@@ -323,16 +323,18 @@ public class AlarmReceiver extends BroadcastReceiver {
             JSONObject s = find(o.optJSONArray("slots"), slot);
             String nm = s == null ? "약" : s.optString("nm", "약");
             String time = s == null ? "" : s.optString("time", "");
-            String name = "gm".equals(who) ? "할머니" : "gp".equals(who) ? "할아버지" : "";
+            String myName = o.optString("myName", "").trim();
+            String name = "gm".equals(who) ? "할머니" : "gp".equals(who) ? "할아버지" : ("me".equals(who) && !myName.isEmpty()) ? myName + "님" : "";
+            String vprefix = "me".equals(who) ? "c" : who;
             if ("dose".equals(kind)) {
                 String title = name.isEmpty() ? nm + " 드실 시간이에요! 💊" : name + "~ " + nm + " 드실 시간이에요! 💊";
                 notifyDose(ctx, title, "눌러서 귤손녀 앱을 열고 '약 먹었어요'를 눌러 주세요.", slot);
-                async = play(ctx, who + "_" + slot, pr);
+                async = play(ctx, vprefix + "_" + slot, pr);
             } else if ("miss".equals(kind)) {
                 String d = Sched.day(System.currentTimeMillis() - 31 * 60 * 1000L);
                 boolean taken = Sched.p(ctx).getBoolean("t_" + d + "_" + slot, false);
                 if (!taken && !topic.isEmpty()) {
-                    String subj = "gm".equals(who) ? "할머니께서" : "gp".equals(who) ? "할아버지께서" : "가족분이";
+                    String subj = "gm".equals(who) ? "할머니께서" : "gp".equals(who) ? "할아버지께서" : name.isEmpty() ? "가족분이" : name + "이";
                     final JSONObject m = new JSONObject();
                     m.put("topic", topic);
                     m.put("title", "⚠️ " + subj + " " + nm + "을 아직 안 드셨어요");
