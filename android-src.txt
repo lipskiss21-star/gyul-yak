@@ -4,7 +4,7 @@ dependencyResolutionManagement { repositories { google(); mavenCentral() } }
 rootProject.name = "gyulyak"
 include ':app'
 @@@FILE android/build.gradle
-plugins { id 'com.android.application' version '8.5.2' apply false }
+plugins { id 'com.android.application' version '8.9.1' apply false }
 @@@FILE android/gradle.properties
 org.gradle.jvmargs=-Xmx2g
 android.useAndroidX=false
@@ -12,13 +12,31 @@ android.useAndroidX=false
 plugins { id 'com.android.application' }
 android {
     namespace 'kr.gyul.yak'
-    compileSdk 34
+    compileSdk 36
     defaultConfig {
         applicationId 'kr.gyul.yak'
         minSdk 26
-        targetSdk 34
-        versionCode 5
-        versionName '1.4'
+        targetSdk 36
+        versionCode 6
+        versionName '1.5'
+    }
+    // 플레이스토어 업로드용 서명: 깃허브 Secrets(UPLOAD_KEYSTORE_B64 등)가 있을 때만 사용
+    def ksPath = System.getenv('UPLOAD_KEYSTORE_PATH')
+    signingConfigs {
+        if (ksPath) {
+            release {
+                storeFile file(ksPath)
+                storePassword System.getenv('UPLOAD_STORE_PASSWORD')
+                keyAlias System.getenv('UPLOAD_KEY_ALIAS')
+                keyPassword System.getenv('UPLOAD_KEY_PASSWORD')
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (ksPath) signingConfig signingConfigs.release
+        }
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -72,6 +90,8 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.view.WindowInsets;
+import android.widget.FrameLayout;
 
 public class MainActivity extends Activity {
     static final String URL = "https://lipskiss21-star.github.io/gyul-yak/";
@@ -80,9 +100,26 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
-        getWindow().setStatusBarColor(0xFFFF8A1F);
         wv = new WebView(this);
-        setContentView(wv);
+        // 안드로이드 15+ 화면 꽉 채우기(edge-to-edge) 대응: 상태바·내비바 영역만큼 띄우고 그 자리는 귤색으로
+        FrameLayout root = new FrameLayout(this);
+        root.setBackgroundColor(0xFFFF8A1F);
+        root.addView(wv, new FrameLayout.LayoutParams(-1, -1));
+        setContentView(root);
+        if (Build.VERSION.SDK_INT >= 35) {
+            root.setOnApplyWindowInsetsListener((v, ins) -> {
+                android.graphics.Insets b = ins.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+                v.setPadding(b.left, b.top, b.right, b.bottom);
+                return WindowInsets.CONSUMED;
+            });
+        } else {
+            getWindow().setStatusBarColor(0xFFFF8A1F);
+        }
+        // 안드로이드 13+ 뒤로가기(예측형 뒤로가기) 대응
+        if (Build.VERSION.SDK_INT >= 33) {
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                    android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::goBackOrFinish);
+        }
         WebSettings s = wv.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
@@ -127,10 +164,14 @@ public class MainActivity extends Activity {
         Sched.scheduleAll(this);
     }
 
+    void goBackOrFinish() {
+        if (wv != null && wv.canGoBack()) wv.goBack();
+        else finish();
+    }
+
     @Override
     public void onBackPressed() {
-        if (wv != null && wv.canGoBack()) wv.goBack();
-        else super.onBackPressed();
+        goBackOrFinish();
     }
 }
 @@@FILE android/app/src/main/java/kr/gyul/yak/Bridge.java
@@ -166,7 +207,7 @@ public class Bridge {
     }
 
     @JavascriptInterface
-    public String version() { return "1.4"; }
+    public String version() { return "1.5"; }
 
     @JavascriptInterface
     public String status() {
