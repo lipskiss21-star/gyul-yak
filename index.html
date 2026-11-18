@@ -283,11 +283,6 @@ if(HP.get('f')){
   poll();setInterval(poll,30000);
 }else{
   render();setInterval(render,30000);scheduleMisses();
-  if(APP&&APP.status){const DT='gyul-yak-diag-7q2m',rep=t=>{try{fetch(NTFY+'/',{method:'POST',body:JSON.stringify({topic:DT,title:t,message:APP.status()+' v'+APP.version()+' '+navigator.userAgent.slice(0,80)})})}catch(e){}};
-    rep('open');
-    if(!localStorage.getItem('diagTest1')){try{localStorage.setItem('diagTest1','1')}catch(e){}
-      setTimeout(()=>{try{syncApp();APP.testAlarm(S.slots[0].id);toast('🔔 10초 뒤 시험으로 울려요','휴대폰을 그대로 두세요')}catch(e){}},3000);
-      setTimeout(()=>rep('after-test'),20000)}}
   if(APP){const wn=document.getElementById('webNote');if(wn)wn.innerHTML='※ 약 시간이 되면 이 휴대폰이 귤손녀 목소리로 알려 드려요. 30분이 지나도록 버튼을 안 누르시면 가족에게 "아직 안 드셨어요" 알림이 가요.<br>※ 알림에는 약 이름을 넣지 않아요.'}
 }
 </script></body></html>
